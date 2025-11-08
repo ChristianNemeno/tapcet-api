@@ -127,9 +127,46 @@ namespace tapcet_api.Services.Implementations
 
         }
 
-        public Task<AuthResponseDto?> LoginAsync(LoginDto loginDto)
+        public async Task<AuthResponseDto?> LoginAsync(LoginDto loginDto)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(loginDto.Email);
+                if (user == null) {
+                    _logger.LogWarning("Login failed: User{Email} not found", loginDto.Email);
+                    return null;
+                }
+
+                var result = await _signInManager.CheckPasswordSignInAsync(user, loginDto.Password, false);
+                if (!result.Succeeded) {
+                    _logger.LogWarning("Login failed: Invalid password for {Email}", loginDto.Email);
+                    return null;
+                }
+
+                var roles = await _userManager.GetRolesAsync(user);
+
+                var token = await GenerateJwtToken(user);
+
+                _logger.LogInformation("User {Email} logged in successfully", user.Email);
+
+                return new AuthResponseDto
+                {
+                    UserId = user.Id,
+                    UserName = user.UserName!,
+                    Email = user.Email!,
+                    Token = token,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(
+                        _configuration.GetValue<int>("JwtSettings:ExpiryInMinutes")),
+                    Roles = roles.ToList()
+
+                };
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during login for {Email}", loginDto.Email);
+                return null;
+            }
         }
     }
 
