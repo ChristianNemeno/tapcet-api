@@ -64,7 +64,14 @@ namespace tapcet_api.Controllers
 
         }
 
-        
+        [HttpPost("check-email")]
+        [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CheckEmail([FromQuery] string email)
+        {
+            var exists = await _authService.UserExistsAsync(email);
+            return Ok(new { exists });
+        }
+
 
     }
 }
