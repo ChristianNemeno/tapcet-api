@@ -1,11 +1,13 @@
-﻿using tapcet_api.Services.Interfaces;
+﻿using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Sockets;
 using System.Security.Claims;
 using System.Text;
 using tapcet_api.DTO.Auth;
 using tapcet_api.Models;
+using tapcet_api.Services.Interfaces;
 
 namespace tapcet_api.Services.Implementations
 {
@@ -76,10 +78,11 @@ namespace tapcet_api.Services.Implementations
             try
             {
                 // check first if no existing email with that entry
-                if (await UserExistsAsync(registerDto.Email){
+                if (await UserExistsAsync(registerDto.Email)){
 
                     _logger.LogWarning("Registration failed: {Email} already exists", registerDto.Email);
                     return null;
+      
                 }
 
                 // then make a new user through the received dto
@@ -91,7 +94,6 @@ namespace tapcet_api.Services.Implementations
                     Email = registerDto.Email,
                     CreatedDate = DateTime.UtcNow
                 };
-
 
                 var result = await _userManager.CreateAsync(user, registerDto.Password);
 
