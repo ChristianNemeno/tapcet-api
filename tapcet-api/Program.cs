@@ -62,6 +62,9 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// Add AutoMapper
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
+
 // Register Application Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 
