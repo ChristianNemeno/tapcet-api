@@ -4,6 +4,7 @@ namespace tapcet_api.Services.Interfaces
 {
     public interface IQuizService
     {
+        // Quiz CRUD operations
         Task<QuizResponseDto?> CreateQuizAsync(CreateQuizDto createDto, string userId);
         Task<QuizResponseDto?> GetQuizByIdAsync(int quizId);
         Task<List<QuizSummaryDto>> GetAllQuizzesAsync();
@@ -12,9 +13,11 @@ namespace tapcet_api.Services.Interfaces
         Task<bool> DeleteQuizAsync(int quizId, string userId);
         Task<bool> ToggleQuizStatusAsync(int quizId, string userId);
 
+        // Quiz questions
         Task<QuizResponseDto?> AddQuestionToQuizAsync(int quizId, CreateQuestionDto questionDto, string userId);
         Task<bool> RemoveQuestionFromQuizAsync(int quizId, int questionId, string userId);
 
+        // User specific
         Task<List<QuizSummaryDto>> GetUserCreatedQuizzesAsync(string userId);
     }
 }

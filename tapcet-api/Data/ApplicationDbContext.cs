@@ -12,7 +12,7 @@ namespace tapcet_api.Data
         {
         }
 
-         public DbSet<Quiz> Quizzes { get; set; }
+        public DbSet<Quiz> Quizzes { get; set; }
         public DbSet<Question> Questions { get; set; }
         public DbSet<Choice> Choices { get; set; }
         public DbSet<QuizAttempt> QuizAttempts { get; set; }
