@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using tapcet_api.Data;
 using tapcet_api.DTO.Quiz;
 using tapcet_api.Models;
@@ -89,9 +90,29 @@ namespace tapcet_api.Services.Implementations
             throw new NotImplementedException();
         }
 
-        public Task<QuizResponseDto?> GetQuizByIdAsync(int quizId)
+        public async Task<QuizResponseDto?> GetQuizByIdAsync(int quizId)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var quiz = await _context.Quizzes
+                    .Include(q => q.CreatedBy)
+                    .Include(q => q.Questions)
+                        .ThenInclude(q => q.Choices)
+                    .FirstOrDefaultAsync(q => q.Id == quizId);
+
+                if (quiz == null)
+                {
+                    _logger.LogWarning("Quiz not found: {QuizId}", quizId);
+                    return null;
+                }
+
+                return _mapper.Map<QuizResponseDto>(quiz);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving quiz {QuizId}", quizId);
+                return null;
+            }
         }
 
         public Task<List<QuizSummaryDto>> GetUserCreatedQuizzesAsync(string userId)
