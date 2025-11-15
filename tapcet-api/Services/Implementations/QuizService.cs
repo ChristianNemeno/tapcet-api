@@ -19,10 +19,59 @@ namespace tapcet_api.Services.Implementations
         /**
          * Notes: Naay validation sa service too , so three validation, sa DTO , sa Models and this 
          */
-        public Task<QuizResponseDto?> AddQuestionToQuizAsync(int quizId, CreateQuestionDto questionDto, string userId)
+        public async Task<QuizResponseDto?> AddQuestionToQuizAsync(int quizId, CreateQuestionDto questionDto, string userId)
         {
-            
-            throw new NotImplementedException();
+            try
+            {
+                var quiz = await _context.Quizzes
+                    .Include(q => q.Questions)
+                    .FirstOrDefaultAsync(q => q.Id == quizId);
+
+                if (quiz == null)
+                {
+                    _logger.LogWarning("Quiz not found: {QuizId}", quizId);
+                    return null;
+                }
+
+                // validation checks if user is the creator
+                if (quiz.CreatedById != userId)
+                {
+                    _logger.LogWarning("User {UserId} attempted to add question to quiz {QuizId} without permission", userId, quizId);
+                    return null;
+                }
+
+                // validate question, given my wants 
+                if (questionDto.Choices == null || questionDto.Choices.Count < 2)
+                {
+                    _logger.LogWarning("Question must have at least 2 choices");
+                    return null;
+                }
+
+                //learn lambda
+                var correctCount = questionDto.Choices.Count(c => c.IsCorrect);
+                if (correctCount != 1)
+                {
+                    _logger.LogWarning("Question must have exactly one correct answer");
+                    return null;
+                }
+
+
+                // always use mapper
+                var question = _mapper.Map<Question>(questionDto);
+                question.QuizId = quizId;
+
+                _context.Questions.Add(question);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Question added to quiz {QuizId}", quizId);
+
+                return await GetQuizByIdAsync(quizId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding question to quiz {QuizId}", quizId);
+                return null;
+            }
         }
 
         public async Task<QuizResponseDto?> CreateQuizAsync(CreateQuizDto createDto, string userId)
