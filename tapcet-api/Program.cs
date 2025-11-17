@@ -67,6 +67,8 @@ builder.Services.AddAutoMapper(typeof(Program).Assembly);
 
 // Register Application Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IQuizService, QuizService>();
+builder.Services.AddScoped<IQuizAttemptService, QuizAttemptService>();
 
 // Configure Swagger with JWT support
 builder.Services.AddEndpointsApiExplorer();
