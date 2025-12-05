@@ -62,7 +62,6 @@ namespace tapcet_api.Services.Implementations
 
                 _logger.LogInformation("Quiz created successfully: {QuizId} by user {UserId}", quiz.Id, userId);
 
-                // Return response with full details
                 return await GetQuizByIdAsync(quiz.Id);
             }
             catch (Exception ex)
