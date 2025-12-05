@@ -77,5 +77,26 @@ namespace tapcet_api.Controllers
 
 
         }
+
+        [HttpGet]
+        [ProducesResponseType(typeof(List<QuizSummaryDto>), StatusCodes.Status200OK)]
+        
+        public async Task<IActionResult> GetAllQuizzes()
+        {
+            var result = await _quizService.GetAllQuizzesAsync();
+            return Ok(result);
+        }
+
+        [HttpGet("active")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(List<QuizSummaryDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetActiveQuzzes()
+        {
+            var result = await _quizService.GetActiveQuizzesAsync();
+            return Ok(result);
+        }
+
+
+
     }
 }
