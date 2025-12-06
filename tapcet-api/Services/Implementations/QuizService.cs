@@ -322,6 +322,7 @@ namespace tapcet_api.Services.Implementations
                 var question = await _context.Questions
                     .FirstOrDefaultAsync(q => q.Id == questionId && q.QuizId == quizId);
 
+
                 if (question == null)
                 {
                     _logger.LogWarning("Question {QuestionId} not found in quiz {QuizId}", questionId, quizId);
