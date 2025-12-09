@@ -80,7 +80,7 @@ namespace tapcet_api.Controllers
         }
 
         [HttpGet]
-        [ProducesResponseType(typeof(List<QuizSummaryDto>), StatusCodes.Status200OK)]     
+        [ProducesResponseType(typeof(List<QuizSummaryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllQuizzes()
         {
             var result = await _quizService.GetAllQuizzesAsync();
@@ -129,11 +129,11 @@ namespace tapcet_api.Controllers
 
         [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]  
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteQuiz(int id)
         {
-            
+
 
             var userId = GetUserId();
             if (string.IsNullOrEmpty(userId))
@@ -163,7 +163,8 @@ namespace tapcet_api.Controllers
         {
             var userId = GetUserId();
 
-            if (string.IsNullOrEmpty(userId)) {
+            if (string.IsNullOrEmpty(userId))
+            {
                 return Unauthorized(new { message = "User not authenticated" });
             }
 
@@ -171,15 +172,15 @@ namespace tapcet_api.Controllers
 
             if (result == false)
             {
-                _logger.LogWarning("Failed to toggle quiz {QuizId} by user {UserId}", id, userId);  
+                _logger.LogWarning("Failed to toggle quiz {QuizId} by user {UserId}", id, userId);
 
                 return NotFound();
             }
-            _logger.LogInformation("Quiz status toggled: {QuizId} by user {UserId}", id, userId);  
+            _logger.LogInformation("Quiz status toggled: {QuizId} by user {UserId}", id, userId);
 
             return Ok(new { message = "Status toggled" });
 
-    }
+        }
 
 
         [HttpPost("{id}/questions")]
@@ -200,9 +201,9 @@ namespace tapcet_api.Controllers
                 return Unauthorized(new { message = "User not authenticated" });
             }
 
-            var result = await _quizService.AddQuestionToQuizAsync(id,createQuestionDto ,userId);
+            var result = await _quizService.AddQuestionToQuizAsync(id, createQuestionDto, userId);
 
-            if(result == null)
+            if (result == null)
             {
                 return BadRequest();
             }
@@ -210,4 +211,5 @@ namespace tapcet_api.Controllers
             return Ok(result);
 
         }
+    }
 }
