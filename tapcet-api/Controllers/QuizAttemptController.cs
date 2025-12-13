@@ -72,7 +72,51 @@ namespace tapcet_api.Controllers
         }
 
         /// <summary>
-        /// Get attempt details by ID (placeholder for CreatedAtAction)
+        /// Submit quiz answers and get results
+        /// </summary>
+        /// <param name="submitDto">Quiz attempt ID and all answers</param>
+        /// <returns>Detailed quiz results with score and answer breakdown</returns>
+        [HttpPost("submit")]
+        [ProducesResponseType(typeof(QuizResultDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> SubmitQuiz([FromBody] SubmitQuizDto submitDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+
+            var result = await _attemptService.SubmitQuizAsync(submitDto, userId);
+
+
+            if (result == null)
+            {
+                _logger.LogWarning("Failed to submit quiz attempt {AttemptId} by user {UserId}",
+                    submitDto.QuizAttemptId, userId);
+                return BadRequest(new { 
+                    message = "Failed to submit quiz. Ensure you've answered all questions and haven't already submitted this attempt." 
+                });
+            }
+
+
+            _logger.LogInformation("Quiz submitted: Attempt {AttemptId} with score {Score}% by user {UserId}",
+                submitDto.QuizAttemptId, result.Score, userId);
+
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get attempt details by ID
         /// </summary>
         /// <param name="id">Attempt ID</param>
         /// <returns>Attempt details</returns>
