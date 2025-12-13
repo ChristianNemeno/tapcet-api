@@ -87,16 +87,13 @@ namespace tapcet_api.Controllers
                 return BadRequest(ModelState);
             }
 
-
             var userId = GetUserId();
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new { message = "User not authenticated" });
             }
 
-
             var result = await _attemptService.SubmitQuizAsync(submitDto, userId);
-
 
             if (result == null)
             {
@@ -107,10 +104,8 @@ namespace tapcet_api.Controllers
                 });
             }
 
-
             _logger.LogInformation("Quiz submitted: Attempt {AttemptId} with score {Score}% by user {UserId}",
                 submitDto.QuizAttemptId, result.Score, userId);
-
 
             return Ok(result);
         }
@@ -139,6 +134,101 @@ namespace tapcet_api.Controllers
                 _logger.LogWarning("Attempt not found or access denied: {AttemptId} for user {UserId}", id, userId);
                 return NotFound(new { message = "Attempt not found or you don't have permission to view it" });
             }
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get detailed results for a completed quiz attempt
+        /// </summary>
+        /// <param name="id">Attempt ID</param>
+        /// <returns>Detailed quiz results with question-by-question breakdown</returns>
+        [HttpGet("{id}/result")]
+        [ProducesResponseType(typeof(QuizResultDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetAttemptResult(int id)
+        {
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var result = await _attemptService.GetAttemptResultAsync(id, userId);
+
+            if (result == null)
+            {
+                _logger.LogWarning("Result not found or attempt not completed: Attempt {AttemptId} for user {UserId}",
+                    id, userId);
+                return BadRequest(new { 
+                    message = "Result not found. The attempt may not be completed, doesn't exist, or you don't have permission to view it." 
+                });
+            }
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get all quiz attempts for the current user
+        /// </summary>
+        /// <returns>List of user's quiz attempts (both completed and in-progress)</returns>
+        [HttpGet("user/me")]
+        [ProducesResponseType(typeof(List<QuizAttemptResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetMyAttempts()
+        {
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var result = await _attemptService.GetUserAttemptsAsync(userId);
+
+            _logger.LogInformation("Retrieved {Count} attempts for user {UserId}", result.Count, userId);
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get all completed attempts for a specific quiz
+        /// </summary>
+        /// <param name="quizId">Quiz ID</param>
+        /// <returns>List of completed attempts for the quiz, ordered by score</returns>
+        [HttpGet("quiz/{quizId}")]
+        [ProducesResponseType(typeof(List<QuizAttemptResponseDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetQuizAttempts(int quizId)
+        {
+            var result = await _attemptService.GetQuizAttemptsAsync(quizId);
+
+            _logger.LogInformation("Retrieved {Count} attempts for quiz {QuizId}", result.Count, quizId);
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get leaderboard for a quiz
+        /// </summary>
+        /// <param name="quizId">Quiz ID</param>
+        /// <param name="topCount">Number of top results to return (default: 10, max: 100)</param>
+        /// <returns>Top performers for the quiz, ranked by score and completion time</returns>
+        [HttpGet("quiz/{quizId}/leaderboard")]
+        [ProducesResponseType(typeof(List<QuizAttemptResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetLeaderboard(int quizId, [FromQuery] int topCount = 10)
+        {
+            // Validate topCount
+            if (topCount < 1 || topCount > 100)
+            {
+                return BadRequest(new { message = "topCount must be between 1 and 100" });
+            }
+
+            var result = await _attemptService.GetQuizLeaderboardAsync(quizId, topCount);
+
+            _logger.LogInformation("Retrieved top {TopCount} leaderboard entries for quiz {QuizId}", 
+                topCount, quizId);
 
             return Ok(result);
         }
