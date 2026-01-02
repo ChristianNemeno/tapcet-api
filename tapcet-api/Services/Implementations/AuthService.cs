@@ -1,8 +1,6 @@
-﻿using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using System.Net.Sockets;
 using System.Security.Claims;
 using System.Text;
 using tapcet_api.DTO.Auth;
@@ -17,7 +15,6 @@ namespace tapcet_api.Services.Implementations
         private readonly SignInManager<User> _signInManager;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
-
 
         public AuthService(
             UserManager<User> userManager,
@@ -40,7 +37,6 @@ namespace tapcet_api.Services.Implementations
 
             var roles = await _userManager.GetRolesAsync(user);
 
-
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
@@ -49,12 +45,10 @@ namespace tapcet_api.Services.Implementations
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
-
 
             var token = new JwtSecurityToken(
                 issuer: jwtSettings["Issuer"],
@@ -67,27 +61,35 @@ namespace tapcet_api.Services.Implementations
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
         public async Task<bool> UserExistsAsync(string email)
         {
             var user = await _userManager.FindByEmailAsync(email);
             return user != null;
         }
 
-        public async Task<AuthResponseDto?> RegisterAsync(RegisterDto registerDto)
+        public async Task<AuthResult> RegisterAsync(RegisterDto registerDto)
         {
             try
             {
-                // check first if no existing email with that entry
-                if (await UserExistsAsync(registerDto.Email)){
+                _logger.LogInformation("Registration attempt for email: {Email}", registerDto.Email);
 
-                    _logger.LogWarning("Registration failed: {Email} already exists", registerDto.Email);
-                    return null;
-      
+                // Check if email already exists
+                if (await UserExistsAsync(registerDto.Email))
+                {
+                    _logger.LogWarning("Registration failed: Email {Email} already exists", registerDto.Email);
+                    return AuthResult.Failure("Email is already registered", new List<string> { "EMAIL_EXISTS" });
                 }
 
-                // then make a new user through the received dto
-                // note that in our frontend , well be handling that
-                // validation is best on both sides( still thinking about it )
+                // Check if username already exists
+                var existingUser = await _userManager.FindByNameAsync(registerDto.Username);
+                if (existingUser != null)
+                {
+                    _logger.LogWarning("Registration failed: Username {Username} already exists", registerDto.Username);
+                    return AuthResult.Failure("Username is already taken", new List<string> { "USERNAME_EXISTS" });
+                }
+
+                // Create new user
                 var user = new User
                 {
                     UserName = registerDto.Username,
@@ -95,22 +97,27 @@ namespace tapcet_api.Services.Implementations
                     CreatedDate = DateTime.UtcNow
                 };
 
+                _logger.LogInformation("Creating user account for {Email}", registerDto.Email);
                 var result = await _userManager.CreateAsync(user, registerDto.Password);
 
                 if (!result.Succeeded)
                 {
-                    _logger.LogError("User creation failed: {Errors}",
-                        string.Join(", ", result.Errors.Select(e => e.Description)));
-                    return null;
+                    var errors = result.Errors.Select(e => e.Description).ToList();
+                    var errorString = string.Join(", ", errors);
+                    
+                    _logger.LogError("User creation failed for {Email}. Errors: {Errors}", 
+                        registerDto.Email, errorString);
+                    
+                    return AuthResult.Failure("Password validation failed", errors);
                 }
 
+                _logger.LogInformation("User account created for {Email}, assigning role", user.Email);
                 await _userManager.AddToRoleAsync(user, "User");
 
-                _logger.LogInformation("User {Email} registered successfully", user.Email);
-
+                _logger.LogInformation("Generating JWT token for {Email}", user.Email);
                 var token = await GenerateJwtToken(user);
 
-                return new AuthResponseDto
+                var response = new AuthResponseDto
                 {
                     UserId = user.Id,
                     UserName = user.UserName!,
@@ -121,37 +128,41 @@ namespace tapcet_api.Services.Implementations
                     Roles = new List<string> { "User" }
                 };
 
+                _logger.LogInformation("User {Email} registered successfully", user.Email);
+                return AuthResult.Success(response);
             }
-            catch (Exception ex) {
-                _logger.LogError(ex, "Error during registration for {Email}", registerDto.Email);
-                return null;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during registration for {Email}", registerDto.Email);
+                return AuthResult.Failure("An unexpected error occurred during registration", 
+                    new List<string> { "INTERNAL_ERROR", ex.Message });
             }
-
         }
 
-        public async Task<AuthResponseDto?> LoginAsync(LoginDto loginDto)
+        public async Task<AuthResult> LoginAsync(LoginDto loginDto)
         {
             try
             {
+                _logger.LogInformation("Login attempt for email: {Email}", loginDto.Email);
+
                 var user = await _userManager.FindByEmailAsync(loginDto.Email);
-                if (user == null) {
-                    _logger.LogWarning("Login failed: User{Email} not found", loginDto.Email);
-                    return null;
+                if (user == null)
+                {
+                    _logger.LogWarning("Login failed: User {Email} not found", loginDto.Email);
+                    return AuthResult.Failure("Invalid email or password", new List<string> { "INVALID_CREDENTIALS" });
                 }
 
                 var result = await _signInManager.CheckPasswordSignInAsync(user, loginDto.Password, false);
-                if (!result.Succeeded) {
+                if (!result.Succeeded)
+                {
                     _logger.LogWarning("Login failed: Invalid password for {Email}", loginDto.Email);
-                    return null;
+                    return AuthResult.Failure("Invalid email or password", new List<string> { "INVALID_CREDENTIALS" });
                 }
 
                 var roles = await _userManager.GetRolesAsync(user);
-
                 var token = await GenerateJwtToken(user);
 
-                _logger.LogInformation("User {Email} logged in successfully", user.Email);
-
-                return new AuthResponseDto
+                var response = new AuthResponseDto
                 {
                     UserId = user.Id,
                     UserName = user.UserName!,
@@ -160,16 +171,17 @@ namespace tapcet_api.Services.Implementations
                     ExpiresAt = DateTime.UtcNow.AddMinutes(
                         _configuration.GetValue<int>("JwtSettings:ExpiryInMinutes")),
                     Roles = roles.ToList()
-
                 };
 
+                _logger.LogInformation("User {Email} logged in successfully", user.Email);
+                return AuthResult.Success(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during login for {Email}", loginDto.Email);
-                return null;
+                _logger.LogError(ex, "Unexpected error during login for {Email}", loginDto.Email);
+                return AuthResult.Failure("An unexpected error occurred during login", 
+                    new List<string> { "INTERNAL_ERROR", ex.Message });
             }
         }
     }
-
 }

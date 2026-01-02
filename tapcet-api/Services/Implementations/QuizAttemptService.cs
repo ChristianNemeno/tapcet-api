@@ -181,7 +181,7 @@ namespace tapcet_api.Services.Implementations
                     CorrectAnswers = correctAnswers,
                     IncorrectAnswers = totalQuestions - correctAnswers,
                     Score = score,
-                    Percentage = score,
+                    Percentage = score, 
                     StartedAt = attempt.StartedAt,
                     CompletedAt = attempt.CompletedAt.Value,
                     Duration = attempt.CompletedAt.Value - attempt.StartedAt,

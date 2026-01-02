@@ -162,7 +162,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Keep HTTPS redirection disabled for development with emulator
+// app.UseHttpsRedirection();
 
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();

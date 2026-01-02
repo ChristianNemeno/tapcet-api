@@ -4,8 +4,8 @@ namespace tapcet_api.Services.Interfaces
 {
     public interface IAuthService
     {
-        Task<AuthResponseDto?> RegisterAsync(RegisterDto registerDto);
-        Task<AuthResponseDto?> LoginAsync(LoginDto loginDto);
         Task<bool> UserExistsAsync(string email);
+        Task<AuthResult> RegisterAsync(RegisterDto registerDto);
+        Task<AuthResult> LoginAsync(LoginDto loginDto);
     }
 }
