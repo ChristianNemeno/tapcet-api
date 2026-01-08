@@ -1,4 +1,6 @@
-﻿namespace tapcet_api.DTO.Question
+﻿using tapcet_api.DTO.Choice;
+
+namespace tapcet_api.DTO.Question
 {
     public class QuestionResponseDto
     {

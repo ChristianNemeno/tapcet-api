@@ -11,10 +11,10 @@ namespace tapcet_api.Models
 
         
         [Required]
-        [MaxLength(100)]
+        [MaxLength(1000)]
         public required string Text { get; set; }
 
-        [MaxLength(300)]
+        [MaxLength(1000)]
         public string? Explanation { get; set; }
 
         public string? ImageUrl { get; set; }
@@ -28,12 +28,5 @@ namespace tapcet_api.Models
         public ICollection<Choice> Choices { get; set; } = new List<Choice>();
         
         public ICollection<UserAnswer> UserAnswers { get; set; } = new List<UserAnswer>();
-
-
-
-
-
-
-
     }
 }
