@@ -19,6 +19,8 @@ namespace tapcet_api.Mappings
 
             
             CreateMap<Quiz, QuizSummaryDto>()
+                .ForMember(dest => dest.CreatedById,
+                    opt => opt.MapFrom(src => src.CreatedById))
                 .ForMember(dest => dest.CreatedByName, 
                     opt => opt.MapFrom(src => src.CreatedBy != null ? src.CreatedBy.UserName : "Unknown"))
                 .ForMember(dest => dest.QuestionCount, 
