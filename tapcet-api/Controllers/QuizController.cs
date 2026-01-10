@@ -211,5 +211,18 @@ namespace tapcet_api.Controllers
             return Ok(result);
 
         }
+
+        [HttpGet("user/me")]
+        [ProducesResponseType(typeof(List<QuizSummaryDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetMyQuizzes()
+        {
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { message = "User not authenticated" });
+
+            var result = await _quizService.GetUserCreatedQuizzesAsync(userId);
+            return Ok(result);
+        }
     }
 }

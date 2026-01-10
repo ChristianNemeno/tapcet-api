@@ -19,21 +19,23 @@ Used for user registration.
 ```csharp
 public class RegisterDto
 {
-    [Required(ErrorMessage = "User name is required")]
-    [StringLength(50, MinimumLength = 3, ErrorMessage = "User name must be between 3 and 50 characters")]
-    public required string UserName { get; set; }
+    [Required(ErrorMessage = "Username is required")]
+    [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters")]
+    public string Username { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Email is required")]
+    [Required(ErrorMessage = "Email is requred")]
     [EmailAddress(ErrorMessage = "Invalid email format")]
-    public required string Email { get; set; }
+    public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Password is required")]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
-    public required string Password { get; set; }
+    [Required(ErrorMessage = "Password is requred")]
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be atleast 6 characters")]
+    [DataType(DataType.Password)]
+    public string Password { get; set; }
 
-    [Required(ErrorMessage = "Password confirmation is required")]
+    [Required(ErrorMessage = "Confirm password is required")]
     [Compare("Password", ErrorMessage = "Passwords do not match")]
-    public required string ConfirmPassword { get; set; }
+    [DataType(DataType.Password)]
+    public string ConfirmPassword { get; set; }
 }
 ```
 
@@ -57,19 +59,58 @@ public class LoginDto
 
 ### AuthResponseDto
 
-Returned after successful login.
+Returned after successful authentication (login or registration).
 
 **Location**: `DTO/Auth/AuthResponseDto.cs`
 
 ```csharp
 public class AuthResponseDto
 {
-    public string Token { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
     public string UserName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
+    public List<string> Roles { get; set; } = new List<string>();
 }
 ```
+
+### AuthResult
+
+Wrapper for authentication operations that provides success/failure status with detailed error information.
+
+**Location**: `DTO/Auth/AuthResult.cs`
+
+```csharp
+public class AuthResult
+{
+    public bool Succeeded { get; set; }
+    public AuthResponseDto? Data { get; set; }
+    public string? ErrorMessage { get; set; }
+    public List<string>? Errors { get; set; }
+
+    public static AuthResult Success(AuthResponseDto data) => new()
+    {
+        Succeeded = true,
+        Data = data
+    };
+
+    public static AuthResult Failure(string message, List<string>? errors = null) => new()
+    {
+        Succeeded = false,
+        ErrorMessage = message,
+        Errors = errors
+    };
+}
+```
+
+**Usage**: The service layer returns `AuthResult` instead of nullable `AuthResponseDto`. The controller checks `result.Succeeded` and returns either `result.Data` or an error response with `result.ErrorMessage` and `result.Errors`.
+
+**Error Codes**:
+- `EMAIL_EXISTS` - Email already registered
+- `USERNAME_EXISTS` - Username already taken
+- `INVALID_CREDENTIALS` - Wrong email/password combination
+- `INTERNAL_ERROR` - Unexpected server error
 
 ## Quiz DTOs
 
@@ -149,9 +190,11 @@ public class QuizSummaryDto
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public string CreatedById { get; set; } = string.Empty;
     public string CreatedByName { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public int QuestionCount { get; set; }
+    public int AttemptCount { get; set; }
 }
 ```
 
@@ -167,13 +210,13 @@ Used to create a question with choices.
 public class CreateQuestionDto
 {
     [Required(ErrorMessage = "Question text is required")]
-    [StringLength(2000, MinimumLength = 1, ErrorMessage = "Question text must be between 1 and 2000 characters")]
+    [StringLength(1000, MinimumLength = 5, ErrorMessage = "Question must be between 5 and 1000 characters")]
     public required string Text { get; set; }
 
-    [StringLength(2000, ErrorMessage = "Explanation cannot exceed 2000 characters")]
+    [StringLength(1000, ErrorMessage = "Explanation cannot exceed 1000 characters")]
     public string? Explanation { get; set; }
 
-    [StringLength(500, ErrorMessage = "Image URL cannot exceed 500 characters")]
+    [Url(ErrorMessage = "Invalid image URL format")]
     public string? ImageUrl { get; set; }
 
     [Required(ErrorMessage = "Choices are required")]
@@ -196,6 +239,7 @@ public class QuestionResponseDto
     public string Text { get; set; } = string.Empty;
     public string? Explanation { get; set; }
     public string? ImageUrl { get; set; }
+    public int QuizId { get; set; }
     public List<ChoiceResponseDto> Choices { get; set; } = new();
 }
 ```
@@ -221,7 +265,7 @@ public class CreateChoiceDto
 
 ### ChoiceResponseDto
 
-Choice information (without IsCorrect during attempt).
+Choice information including correctness indicator.
 
 **Location**: `DTO/Choice/ChoiceResponseDto.cs`
 
@@ -231,6 +275,7 @@ public class ChoiceResponseDto
     public int Id { get; set; }
     public string Text { get; set; } = string.Empty;
     public bool IsCorrect { get; set; }
+    public int QuestionId { get; set; }
 }
 ```
 
@@ -361,6 +406,8 @@ public class QuestionResultDto
 - `[Range(min, max)]`: Numeric range validation
 - `[MinLength(n)]`: Minimum collection length
 - `[MaxLength(n)]`: Maximum collection length
+- `[Url]`: Validates URL format
+- `[DataType(DataType.Password)]`: Indicates password field type
 
 ### Custom Validation
 
@@ -402,15 +449,19 @@ public class QuizProfile : Profile
     {
         CreateMap<Quiz, QuizResponseDto>()
             .ForMember(dest => dest.CreatedByName, 
-                opt => opt.MapFrom(src => src.CreatedBy.UserName))
+                opt => opt.MapFrom(src => src.CreatedBy != null ? src.CreatedBy.UserName : "Unknown"))
             .ForMember(dest => dest.QuestionCount, 
                 opt => opt.MapFrom(src => src.Questions.Count));
 
         CreateMap<Quiz, QuizSummaryDto>()
+            .ForMember(dest => dest.CreatedById,
+                opt => opt.MapFrom(src => src.CreatedById))
             .ForMember(dest => dest.CreatedByName, 
-                opt => opt.MapFrom(src => src.CreatedBy.UserName))
+                opt => opt.MapFrom(src => src.CreatedBy != null ? src.CreatedBy.UserName : "Unknown"))
             .ForMember(dest => dest.QuestionCount, 
-                opt => opt.MapFrom(src => src.Questions.Count));
+                opt => opt.MapFrom(src => src.Questions.Count))
+            .ForMember(dest => dest.AttemptCount, 
+                opt => opt.MapFrom(src => src.QuizAttempts.Count));
 
         CreateMap<CreateQuizDto, Quiz>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -471,6 +522,24 @@ var submitDto = new SubmitQuizDto
 6. **Security**: Never expose sensitive data (password hashes, etc.)
 7. **Performance**: Use projection for large result sets
 
+## JSON Serialization
+
+ASP.NET Core uses `System.Text.Json` by default with camelCase naming policy:
+
+**C# DTO Property:**
+```csharp
+public string UserId { get; set; }
+```
+
+**JSON Response:**
+```json
+{
+  "userId": "123",
+  "userName": "john",
+  "expiresAt": "2024-01-15T15:30:00Z"
+}
+```
+
 ## Future Enhancements
 
 Potential DTO additions:
@@ -504,3 +573,13 @@ Potential DTO additions:
        public List<int> QuizIds { get; set; }
    }
    ```
+
+## DTO Validation Summary
+
+| DTO | Key Constraints |
+|-----|----------------|
+| RegisterDto | Username: 3-50 chars, Email: valid format, Password: 6-100 chars with uppercase/lowercase/digit |
+| CreateQuizDto | Title: 3-200 chars, Description: max 2000 chars, Min 1 question |
+| CreateQuestionDto | Text: 5-1000 chars, Explanation: max 1000 chars, 2-6 choices, exactly 1 correct |
+| CreateChoiceDto | Text: 1-500 chars |
+| SubmitQuizDto | Must answer all questions in quiz |
