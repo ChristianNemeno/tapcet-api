@@ -13,11 +13,19 @@ namespace tapcet_api.Extensions
         {
             services.AddIdentity<User, IdentityRole>(options =>
             {
+                // Password settings (match previous Program.cs)
                 options.Password.RequireDigit = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequiredLength = 6;
+
+                // User settings
                 options.User.RequireUniqueEmail = true;
+
+                // Lockout settings (match previous Program.cs)
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+                options.Lockout.MaxFailedAccessAttempts = 5;
             })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
