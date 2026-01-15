@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Logging;
 
 namespace tapcet_api.Extensions;
 
@@ -66,15 +67,35 @@ public static class RateLimitingServiceExtensions
 
             options.OnRejected = async (context, cancellationToken) =>
             {
+                // Basic metrics / observability: log rate limit violations.
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("RateLimiting");
+
+                var httpContext = context.HttpContext;
+                var userId = httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var partitionKey = !string.IsNullOrEmpty(userId)
+                    ? $"user:{userId}"
+                    : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+                var retryAfterSeconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
+                    ? retryAfter.TotalSeconds
+                    : (double?)null;
+
+                logger.LogWarning(
+                    "Rate limit exceeded. Partition={PartitionKey} Method={Method} Path={Path} RetryAfterSeconds={RetryAfterSeconds}",
+                    partitionKey,
+                    httpContext.Request.Method,
+                    httpContext.Request.Path.Value,
+                    retryAfterSeconds);
+
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
                 context.HttpContext.Response.ContentType = "application/json";
 
                 var response = new
                 {
                     message = "Too many requests. Please try again later.",
-                    retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
-                        ? retryAfter.TotalSeconds
-                        : 60
+                    retryAfter = retryAfterSeconds ?? 60
                 };
 
                 await context.HttpContext.Response.WriteAsJsonAsync(response, cancellationToken);
