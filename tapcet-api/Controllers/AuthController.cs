@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using tapcet_api.DTO.Auth;
 using tapcet_api.Services.Interfaces;
 
@@ -6,6 +7,7 @@ namespace tapcet_api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [EnableRateLimiting("auth")]
     public class AuthController : Controller
     {
         private readonly IAuthService _authService;

@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using tapcet_api.DTO.Quiz;
-using tapcet_api.Services.Implementations;
 using tapcet_api.Services.Interfaces;
 
 namespace tapcet_api.Controllers
@@ -11,6 +11,7 @@ namespace tapcet_api.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
+    [EnableRateLimiting("authenticated")]
     public class QuizController : ControllerBase
     {
 
@@ -62,6 +63,7 @@ namespace tapcet_api.Controllers
 
         [HttpGet("{id}")]
         [AllowAnonymous]
+        [DisableRateLimiting]
         [ProducesResponseType(typeof(QuizResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
 
@@ -89,6 +91,7 @@ namespace tapcet_api.Controllers
 
         [HttpGet("active")]
         [AllowAnonymous]
+        [DisableRateLimiting]
         [ProducesResponseType(typeof(List<QuizSummaryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetActiveQuizzes()
         {

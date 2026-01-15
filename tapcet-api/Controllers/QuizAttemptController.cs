@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using tapcet_api.DTO.Attempt;
 using tapcet_api.Services.Interfaces;
@@ -9,6 +10,7 @@ namespace tapcet_api.Controllers
     [Route("api/quiz-attempt")]
     [ApiController]
     [Authorize]
+    [EnableRateLimiting("authenticated")]
     public class QuizAttemptController : ControllerBase
     {
         private readonly IQuizAttemptService _attemptService;
@@ -99,8 +101,8 @@ namespace tapcet_api.Controllers
             {
                 _logger.LogWarning("Failed to submit quiz attempt {AttemptId} by user {UserId}",
                     submitDto.QuizAttemptId, userId);
-                return BadRequest(new { 
-                    message = "Failed to submit quiz. Ensure you've answered all questions and haven't already submitted this attempt." 
+                return BadRequest(new {
+                    message = "Failed to submit quiz. Ensure you've answered all questions and haven't already submitted this attempt."
                 });
             }
 
@@ -162,8 +164,8 @@ namespace tapcet_api.Controllers
             {
                 _logger.LogWarning("Result not found or attempt not completed: Attempt {AttemptId} for user {UserId}",
                     id, userId);
-                return BadRequest(new { 
-                    message = "Result not found. The attempt may not be completed, doesn't exist, or you don't have permission to view it." 
+                return BadRequest(new {
+                    message = "Result not found. The attempt may not be completed, doesn't exist, or you don't have permission to view it."
                 });
             }
 
@@ -227,7 +229,7 @@ namespace tapcet_api.Controllers
 
             var result = await _attemptService.GetQuizLeaderboardAsync(quizId, topCount);
 
-            _logger.LogInformation("Retrieved top {TopCount} leaderboard entries for quiz {QuizId}", 
+            _logger.LogInformation("Retrieved top {TopCount} leaderboard entries for quiz {QuizId}",
                 topCount, quizId);
 
             return Ok(result);
