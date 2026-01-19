@@ -11,6 +11,11 @@ namespace tapcet_api.DTO.Quiz
         [StringLength(2000, ErrorMessage = "Description cannot exceed 2000 characters")]
         public string? Description { get; set; }
 
+        public int? UnitId { get; set; }
+
+        [Range(1, 999, ErrorMessage = "Order index must be between 1 and 999")]
+        public int OrderIndex { get; set; } = 1;
+
         public bool IsActive { get; set; } = true;
     }
 }

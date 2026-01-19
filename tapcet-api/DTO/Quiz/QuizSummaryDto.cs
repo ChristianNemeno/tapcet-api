@@ -5,6 +5,11 @@
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
+        
+        public int? UnitId { get; set; }
+        public string? UnitTitle { get; set; }
+        public int OrderIndex { get; set; }
+        
         public DateTimeOffset CreatedAt { get; set; }
         public string CreatedById { get; set; } = string.Empty;
         public string CreatedByName { get; set; } = string.Empty;
