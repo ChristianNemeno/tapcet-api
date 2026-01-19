@@ -12,6 +12,8 @@ namespace tapcet_api.Mappings
             CreateMap<Quiz, QuizResponseDto>()
                 .ForMember(dest => dest.CreatedByName, 
                     opt => opt.MapFrom(src => src.CreatedBy != null ? src.CreatedBy.UserName : "Unknown"))
+                .ForMember(dest => dest.UnitTitle,
+                    opt => opt.MapFrom(src => src.Unit != null ? src.Unit.Title : null))
                 .ForMember(dest => dest.QuestionCount, 
                     opt => opt.MapFrom(src => src.Questions.Count))
                 .ForMember(dest => dest.Questions, 
@@ -23,6 +25,8 @@ namespace tapcet_api.Mappings
                     opt => opt.MapFrom(src => src.CreatedById))
                 .ForMember(dest => dest.CreatedByName, 
                     opt => opt.MapFrom(src => src.CreatedBy != null ? src.CreatedBy.UserName : "Unknown"))
+                .ForMember(dest => dest.UnitTitle,
+                    opt => opt.MapFrom(src => src.Unit != null ? src.Unit.Title : null))
                 .ForMember(dest => dest.QuestionCount, 
                     opt => opt.MapFrom(src => src.Questions.Count))
                 .ForMember(dest => dest.AttemptCount, 
@@ -34,6 +38,7 @@ namespace tapcet_api.Mappings
                 .ForMember(dest => dest.CreatedById, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
                 .ForMember(dest => dest.IsActive, opt => opt.Ignore())
+                .ForMember(dest => dest.Unit, opt => opt.Ignore())
                 .ForMember(dest => dest.QuizAttempts, opt => opt.Ignore())
                 .ForMember(dest => dest.Questions, opt => opt.MapFrom(src => src.Questions));
 
@@ -42,6 +47,7 @@ namespace tapcet_api.Mappings
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedById, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.Unit, opt => opt.Ignore())
                 .ForMember(dest => dest.Questions, opt => opt.Ignore())
                 .ForMember(dest => dest.QuizAttempts, opt => opt.Ignore());
         }
