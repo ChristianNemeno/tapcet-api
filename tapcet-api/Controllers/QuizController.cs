@@ -83,10 +83,16 @@ namespace tapcet_api.Controllers
 
         [HttpGet]
         [ProducesResponseType(typeof(List<QuizSummaryDto>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetAllQuizzes()
+        public async Task<IActionResult> GetAllQuizzes([FromQuery] int? unitId)
         {
-            var result = await _quizService.GetAllQuizzesAsync();
-            return Ok(result);
+            if (unitId.HasValue)
+            {
+                var result = await _quizService.GetQuizzesByUnitAsync(unitId.Value);
+                return Ok(result);
+            }
+
+            var allQuizzes = await _quizService.GetAllQuizzesAsync();
+            return Ok(allQuizzes);
         }
 
         [HttpGet("active")]
@@ -96,6 +102,16 @@ namespace tapcet_api.Controllers
         public async Task<IActionResult> GetActiveQuizzes()
         {
             var result = await _quizService.GetActiveQuizzesAsync();
+            return Ok(result);
+        }
+
+        [HttpGet("standalone")]
+        [AllowAnonymous]
+        [DisableRateLimiting]
+        [ProducesResponseType(typeof(List<QuizSummaryDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetStandaloneQuizzes()
+        {
+            var result = await _quizService.GetQuizzesByUnitAsync(null);
             return Ok(result);
         }
 
@@ -225,6 +241,68 @@ namespace tapcet_api.Controllers
                 return Unauthorized(new { message = "User not authenticated" });
 
             var result = await _quizService.GetUserCreatedQuizzesAsync(userId);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id}/assign-unit")]
+        [ProducesResponseType(typeof(QuizResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> AssignQuizToUnit(int id, [FromBody] AssignQuizToUnitDto assignDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userId = GetUserId();
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var result = await _quizService.AssignQuizToUnitAsync(id, assignDto.UnitId, assignDto.OrderIndex, userId);
+
+            if (result == null)
+            {
+                return BadRequest(new { message = "Failed to assign quiz to unit. Quiz or unit may not exist, or you don't have permission." });
+            }
+
+            _logger.LogInformation("Quiz {QuizId} assigned to unit {UnitId}", id, assignDto.UnitId);
+
+            return Ok(result);
+        }
+
+        [HttpPatch("{id}/reorder")]
+        [ProducesResponseType(typeof(QuizResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ReorderQuiz(int id, [FromBody] ReorderQuizDto reorderDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userId = GetUserId();
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var result = await _quizService.ReorderQuizAsync(id, reorderDto.OrderIndex, userId);
+
+            if (result == null)
+            {
+                return BadRequest(new { message = "Failed to reorder quiz. Quiz may not exist or you don't have permission." });
+            }
+
+            _logger.LogInformation("Quiz {QuizId} reordered to index {OrderIndex}", id, reorderDto.OrderIndex);
+
             return Ok(result);
         }
     }

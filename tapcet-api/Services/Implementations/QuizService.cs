@@ -77,6 +77,7 @@ namespace tapcet_api.Services.Implementations
             {
                 var quiz = await _context.Quizzes
                     .Include(q => q.CreatedBy)
+                    .Include(q => q.Unit)
                     .Include(q => q.Questions)
                         .ThenInclude(q => q.Choices)
                     .FirstOrDefaultAsync(q => q.Id == quizId);
@@ -102,6 +103,7 @@ namespace tapcet_api.Services.Implementations
             {
                 var quizzes = await _context.Quizzes
                     .Include(q => q.CreatedBy)
+                    .Include(q => q.Unit)
                     .Include(q => q.Questions)
                     .Include(q => q.QuizAttempts)
                     .OrderByDescending(q => q.CreatedAt)
@@ -122,6 +124,7 @@ namespace tapcet_api.Services.Implementations
             {
                 var quizzes = await _context.Quizzes
                     .Include(q => q.CreatedBy)
+                    .Include(q => q.Unit)
                     .Include(q => q.Questions)
                     .Include(q => q.QuizAttempts)
                     .Where(q => q.IsActive)
@@ -143,6 +146,7 @@ namespace tapcet_api.Services.Implementations
             {
                 var quiz = await _context.Quizzes
                     .Include(q => q.CreatedBy)
+                    .Include(q => q.Unit)
                     .Include(q => q.Questions)
                         .ThenInclude(q => q.Choices)
                     .FirstOrDefaultAsync(q => q.Id == quizId);
@@ -163,6 +167,8 @@ namespace tapcet_api.Services.Implementations
                 // Update properties
                 quiz.Title = updateDto.Title;
                 quiz.Description = updateDto.Description;
+                quiz.UnitId = updateDto.UnitId;
+                quiz.OrderIndex = updateDto.OrderIndex;
                 quiz.IsActive = updateDto.IsActive;
 
                 await _context.SaveChangesAsync();
@@ -349,6 +355,7 @@ namespace tapcet_api.Services.Implementations
             {
                 var quizzes = await _context.Quizzes
                     .Include(q => q.CreatedBy)
+                    .Include(q => q.Unit)
                     .Include(q => q.Questions)
                     .Include(q => q.QuizAttempts)
                     .Where(q => q.CreatedById == userId)
@@ -361,6 +368,124 @@ namespace tapcet_api.Services.Implementations
             {
                 _logger.LogError(ex, "Error retrieving quizzes for user {UserId}", userId);
                 return new List<QuizSummaryDto>();
+            }
+        }
+
+        public async Task<List<QuizSummaryDto>> GetQuizzesByUnitAsync(int? unitId)
+        {
+            try
+            {
+                var query = _context.Quizzes
+                    .Include(q => q.CreatedBy)
+                    .Include(q => q.Questions)
+                    .Include(q => q.QuizAttempts)
+                    .Include(q => q.Unit)
+                    .AsQueryable();
+
+                if (unitId.HasValue)
+                {
+                    query = query.Where(q => q.UnitId == unitId.Value);
+                }
+                else
+                {
+                    query = query.Where(q => q.UnitId == null);
+                }
+
+                var quizzes = await query
+                    .OrderBy(q => q.OrderIndex)
+                    .ThenByDescending(q => q.CreatedAt)
+                    .ToListAsync();
+
+                return _mapper.Map<List<QuizSummaryDto>>(quizzes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving quizzes for unit {UnitId}", unitId);
+                return new List<QuizSummaryDto>();
+            }
+        }
+
+        public async Task<QuizResponseDto?> AssignQuizToUnitAsync(int quizId, int unitId, int orderIndex, string userId)
+        {
+            try
+            {
+                var quiz = await _context.Quizzes
+                    .Include(q => q.CreatedBy)
+                    .Include(q => q.Questions)
+                        .ThenInclude(q => q.Choices)
+                    .Include(q => q.Unit)
+                    .FirstOrDefaultAsync(q => q.Id == quizId);
+
+                if (quiz == null)
+                {
+                    _logger.LogWarning("Quiz not found: {QuizId}", quizId);
+                    return null;
+                }
+
+                if (quiz.CreatedById != userId)
+                {
+                    _logger.LogWarning("User {UserId} attempted to assign quiz {QuizId} without permission", userId, quizId);
+                    return null;
+                }
+
+                var unitExists = await _context.Units.AnyAsync(u => u.Id == unitId);
+                if (!unitExists)
+                {
+                    _logger.LogWarning("Unit not found: {UnitId}", unitId);
+                    return null;
+                }
+
+                quiz.UnitId = unitId;
+                quiz.OrderIndex = orderIndex;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Quiz {QuizId} assigned to unit {UnitId} at order {OrderIndex}", quizId, unitId, orderIndex);
+
+                return await GetQuizByIdAsync(quizId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error assigning quiz {QuizId} to unit {UnitId}", quizId, unitId);
+                return null;
+            }
+        }
+
+        public async Task<QuizResponseDto?> ReorderQuizAsync(int quizId, int newOrderIndex, string userId)
+        {
+            try
+            {
+                var quiz = await _context.Quizzes
+                    .Include(q => q.CreatedBy)
+                    .Include(q => q.Questions)
+                        .ThenInclude(q => q.Choices)
+                    .Include(q => q.Unit)
+                    .FirstOrDefaultAsync(q => q.Id == quizId);
+
+                if (quiz == null)
+                {
+                    _logger.LogWarning("Quiz not found: {QuizId}", quizId);
+                    return null;
+                }
+
+                if (quiz.CreatedById != userId)
+                {
+                    _logger.LogWarning("User {UserId} attempted to reorder quiz {QuizId} without permission", userId, quizId);
+                    return null;
+                }
+
+                quiz.OrderIndex = newOrderIndex;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Quiz {QuizId} reordered to index {OrderIndex}", quizId, newOrderIndex);
+
+                return await GetQuizByIdAsync(quizId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reordering quiz {QuizId}", quizId);
+                return null;
             }
         }
     }

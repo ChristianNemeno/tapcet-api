@@ -19,5 +19,10 @@ namespace tapcet_api.Services.Interfaces
 
         // User specific
         Task<List<QuizSummaryDto>> GetUserCreatedQuizzesAsync(string userId);
+
+        // Unit hierarchy support
+        Task<List<QuizSummaryDto>> GetQuizzesByUnitAsync(int? unitId);
+        Task<QuizResponseDto?> AssignQuizToUnitAsync(int quizId, int unitId, int orderIndex, string userId);
+        Task<QuizResponseDto?> ReorderQuizAsync(int quizId, int newOrderIndex, string userId);
     }
 }
