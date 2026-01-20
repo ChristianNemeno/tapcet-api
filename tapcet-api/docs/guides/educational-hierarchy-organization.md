@@ -802,18 +802,18 @@ Home > Science > High School Physics > Unit 1: Forces > Quiz 1: Newton's Laws
 **Goal:** Get the 4-level structure working
 
 **Tasks:**
-- [ ] Create `Subject.cs`, `Course.cs`, `Unit.cs` models
-- [ ] Update `Quiz.cs` model with `UnitId` and `OrderIndex`
-- [ ] Update `ApplicationDbContext.cs` with new DbSets and relationships
-- [ ] Create migration: `dotnet ef migrations add AddEducationalHierarchy`
-- [ ] Apply migration: `dotnet ef database update`
-- [ ] Create DTOs for Subject, Course, Unit
-- [ ] Update Quiz DTOs
-- [ ] Create `ISubjectService`, `ICourseService`, `IUnitService` interfaces
-- [ ] Implement services with basic CRUD operations
-- [ ] Create `SubjectController`, `CourseController`, `UnitController`
-- [ ] Update `QuizController` to accept optional `unitId`
-- [ ] Test all endpoints via Swagger
+- [x] Create `Subject.cs`, `Course.cs`, `Unit.cs` models
+- [x] Update `Quiz.cs` model with `UnitId` and `OrderIndex`
+- [x] Update `ApplicationDbContext.cs` with new DbSets and relationships
+- [x] Create migration: `dotnet ef migrations add AddEducationalHierarchy`
+- [x] Apply migration: `dotnet ef database update`
+- [x] Create DTOs for Subject, Course, Unit
+- [x] Update Quiz DTOs
+- [x] Create `ISubjectService`, `ICourseService`, `IUnitService` interfaces
+- [x] Implement services with basic CRUD operations
+- [x] Create `SubjectController`, `CourseController`, `UnitController`
+- [x] Update `QuizController` to accept optional `unitId`
+- [x] Test all endpoints via Swagger
 - [ ] Add seed data (optional): 2-3 subjects, 4-6 courses, 10-15 units
 
 **Estimated Time:** 3-4 days
@@ -822,6 +822,8 @@ Home > Science > High School Physics > Unit 1: Forces > Quiz 1: Newton's Laws
 - ? Can create Subject ? Course ? Unit ? Quiz hierarchy
 - ? Can retrieve entities at each level
 - ? Existing quizzes still work (backward compatible)
+
+**Status:** ? **COMPLETED** (All core tasks done, optional seed data pending)
 
 ---
 
