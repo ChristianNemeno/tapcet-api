@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using tapcet_api.Data;
 using tapcet_api.Models;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace tapcet_api.Data   
 {
+
     public class ApplicationDbContext : IdentityDbContext<User>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
@@ -105,3 +108,4 @@ namespace tapcet_api.Data
         }
     }
 }
+
