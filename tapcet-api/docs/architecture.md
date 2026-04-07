@@ -1,211 +1,120 @@
 # Architecture
 
-## Overview
-
-TAPCET Quiz API follows a layered architecture pattern with clear separation of concerns. The application is structured into distinct layers, each with specific responsibilities.
-
-## Architecture Layers
+## Layer Overview
 
 ```
-+-----------------------------------------+
-|           Presentation Layer            |
-|     (Controllers / HTTP Endpoints)      |
-+---------------------+-------------------+
-                      |
-+---------------------v-------------------+
-|              Service Layer              |
-|    (Business Logic & Orchestration)     |
-+---------------------+-------------------+
-                      |
-+---------------------v-------------------+
-|           Data Access Layer             |
-| (Entity Framework Core / DbContext)     |
-+---------------------+-------------------+
-                      |
-+---------------------v-------------------+
-|              Database Layer             |
-|               (PostgreSQL)              |
-+-----------------------------------------+
+HTTP Request
+     │
+     ▼
+┌─────────────────────────────────────────┐
+│  Controllers/                           │  ← HTTP only: routing, auth attributes,
+│  (AuthController, QuizController, ...)  │    model validation, status codes
+└────────────────────┬────────────────────┘
+                     │ calls
+                     ▼
+┌─────────────────────────────────────────┐
+│  Services/                              │  ← All business logic, ownership checks,
+│  (IAuthService, IQuizService, ...)      │    AutoMapper, EF Core queries
+└────────────────────┬────────────────────┘
+                     │ uses
+                     ▼
+┌─────────────────────────────────────────┐
+│  Data/ApplicationDbContext              │  ← EF Core DbContext, entity config,
+│  + Models/                             │    relationships, cascade rules
+└────────────────────┬────────────────────┘
+                     │
+                     ▼
+                 PostgreSQL
 ```
 
-## Layer Responsibilities
+**Rule:** Business logic never lives in controllers. Controllers read the request, call one service method, and return a status code. Entities never leave the service layer — only DTOs cross the controller/service boundary.
 
-### 1. Presentation Layer (Controllers)
+---
 
-**Location**: `Controllers/`
+## Directory Structure
 
-**Responsibilities**:
-- Handle HTTP requests and responses
-- Route requests to appropriate service methods
-- Validate request data using ModelState
-- Extract user identity from JWT tokens
-- Return appropriate HTTP status codes
-- Log controller-level actions
+```
+tapcet-api/
+├── Controllers/          # 6 API controllers (one per domain)
+├── Services/
+│   ├── Interfaces/       # IAuthService, IQuizService, IQuizAttemptService, ...
+│   └── *.cs              # Concrete implementations
+├── Models/               # 9 EF Core entity classes
+├── DTO/
+│   ├── Auth/
+│   ├── Quiz/
+│   ├── Question/
+│   ├── Choice/
+│   ├── Attempt/
+│   ├── Subject/
+│   ├── Course/
+│   └── Unit/
+├── Mappings/             # AutoMapper profiles (one per domain)
+├── Data/
+│   ├── ApplicationDbContext.cs   # DbContext + OnModelCreating config
+│   └── DbSeeder.cs               # Seeds roles and admin user on startup
+├── Extensions/           # DI registration helpers
+│   ├── IdentityExtensions.cs
+│   ├── SwaggerExtensions.cs
+│   └── RateLimitingExtensions.cs
+├── Migrations/           # EF Core code-first migration files
+├── Program.cs            # App entry point, all DI and middleware wiring
+└── appsettings.json      # Connection string, JWT, rate limiting config
+```
 
-**Key Components**:
-- `AuthController`: User registration and login
-- `QuizController`: Quiz CRUD operations and question management
-- `QuizAttemptController`: Quiz attempt lifecycle and results
+---
 
-**Pattern**:
+## Startup Sequence (Program.cs)
+
+1. Register infrastructure — controllers, DbContext (`ApplicationDbContext`)
+2. Register extension modules — Identity, Swagger, rate limiting, AutoMapper
+3. Register services — `IAuthService`, `IQuizService`, `IQuizAttemptService`, `ISubjectService`, `ICourseService`, `IUnitService`
+4. Build middleware pipeline — HTTPS redirect → authentication → authorization → rate limiting → Swagger → controllers
+5. Seed database — `DbSeeder.SeedAsync()` runs on every startup (idempotent; skips if data already exists)
+
+---
+
+## Service Pattern
+
+Every service follows the same shape:
+
 ```csharp
-[Route("api/[controller]")]
-[ApiController]
-[Authorize]
-public class ExampleController : ControllerBase
+// Services/Interfaces/IQuizService.cs
+public interface IQuizService
 {
-    private readonly IExampleService _service;
-    private readonly ILogger<ExampleController> _logger;
-
-    // Constructor injection
-    // Validation
-    // Service calls
-    // Response mapping
+    Task<QuizResponseDto?> CreateQuizAsync(CreateQuizDto dto, string userId);
+    // ...
 }
-```
 
-### 2. Service Layer
-
-**Location**: `Services/`
-
-**Responsibilities**:
-- Implement business logic and rules
-- Orchestrate data access operations
-- Perform data validation
-- Map entities to DTOs using AutoMapper
-- Handle exceptions and logging
-
-**Key Components**:
-- `AuthService`: Authentication and JWT generation
-- `QuizService`: Quiz management and question validation
-- `QuizAttemptService`: Attempt tracking, scoring, and statistics
-
-**Pattern**:
-```csharp
-public class ExampleService : IExampleService
+// Services/QuizService.cs
+public class QuizService : IQuizService
 {
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
-    private readonly ILogger<ExampleService> _logger;
-
-    // Business logic implementation
-    // Database queries with EF Core
-    // Data transformation
-    // Error handling
+    private readonly ILogger<QuizService> _logger;
+    // ...
 }
 ```
 
-### 3. Data Access Layer
+**Error signaling convention:**
+- Methods that find/modify resources return `null` when the resource doesn't exist or the caller lacks permission.
+- Methods that perform delete/block operations return `bool` — `false` means "not found or blocked by a business rule."
+- Controllers map `null` → `404` or `403`, `false` → `400` or `404`.
 
-**Location**: `Data/`, `Models/`
+---
 
-**Responsibilities**:
-- Define database schema through entity models
-- Configure entity relationships
-- Manage database context
-- Execute database migrations
+## AutoMapper
 
-**Key Components**:
-- `ApplicationDbContext`: EF Core database context
-- Entity models: `User`, `Quiz`, `Question`, `Choice`, `QuizAttempt`, `UserAnswer`
-
-**Pattern**:
+One profile per domain in `Mappings/`. Registered via:
 ```csharp
-public class ApplicationDbContext : IdentityDbContext<User>
-{
-    public DbSet<Quiz> Quizzes { get; set; }
-    public DbSet<Question> Questions { get; set; }
-}
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
 ```
 
-### 4. Data Transfer Objects (DTOs)
+---
 
-**Location**: `DTO/`
+## Known Gaps (Not Yet Implemented)
 
-**Responsibilities**:
-- Define API request and response contracts
-- Implement data validation attributes
-- Prevent over-posting and under-posting
-- Decouple internal models from external API
-
-## Design Patterns
-
-### Dependency Injection
-
-All services and dependencies are registered in `Program.cs` and injected through constructors.
-
-```csharp
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IQuizService, QuizService>();
-builder.Services.AddScoped<IQuizAttemptService, QuizAttemptService>();
-```
-
-## Authentication and Authorization
-
-### JWT Token Flow
-
-```
-Client -> AuthController -> Identity/UserManager -> JWT token
-Client -> API endpoint (Authorization: Bearer <token>) -> Controller/Service
-```
-
-### Authorization Levels
-
-1. Public endpoints
-   - `GET /api/quiz`
-   - `GET /api/quiz/active`
-
-2. Authenticated endpoints
-   - All POST/PUT/PATCH/DELETE operations
-   - User-specific attempt endpoints
-
-3. Owner authorization
-   - Update/delete quizzes only by creator
-   - View attempt results only by attempt owner
-
-## Data Flow
-
-### Quiz Creation Flow
-
-```
-Client (CreateQuizDto)
-  -> QuizController.CreateQuiz
-  -> QuizService.CreateQuizAsync
-  -> EF Core SaveChanges
-  -> return 201 Created (QuizResponseDto)
-```
-
-### Quiz Attempt Flow
-
-```
-Client starts attempt
-  -> validate quiz active + has questions
-  -> create QuizAttempt
-Client submits answers
-  -> validate attempt ownership + completeness
-  -> calculate score
-  -> persist UserAnswers
-  -> update user statistics
-  -> return QuizResultDto
-```
-
-## Error Handling
-
-- Service layer logs exceptions and returns null/empty results on recoverable failures.
-- Controller layer translates null/failed results into HTTP status codes (400/404/401).
-
-## Configuration
-
-Configuration is stored in `appsettings.json` / `appsettings.Development.json` and may be overridden by environment variables.
-
-Relevant sections:
-- `ConnectionStrings:DefaultConnection`
-- `JwtSettings:*`
-
-## Notes for MVP
-
-For an MVP, this structure is sufficient. For production hardening, consider:
-- Global exception handling middleware
-- Rate limiting
-- Pagination for list endpoints
-- Secret management via environment variables or a secret vault
+- **Global exception handler** — each controller catches exceptions individually
+- **CORS policy** — not configured; browser-based frontends will be blocked
+- **Pagination** — all list endpoints return full result sets
+- **Token refresh** — no refresh token endpoint; clients must re-login after 60 min
